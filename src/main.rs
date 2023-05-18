@@ -10,25 +10,28 @@ fn main() {
     println!("Training text file:\n");
     let mut file_name = String::new();
 
-    if file_name.trim().is_empty() {
+    io::stdin().read_line(&mut file_name).expect("Error reading file");
+    file_name = file_name.trim().to_string();
+
+    if file_name.is_empty() {
         file_name = String::from("shakespeare_plays.txt");
     }
 
-    io::stdin().read_line(&mut file_name).expect("Error reading file");
     println!("Opening file {file_name}");
 
     println!("Number of phrases to output:\n");
     let mut num_phrases = String::new();
     io::stdin().read_line(&mut num_phrases);
+    num_phrases = num_phrases.trim().to_string();
 
-    if num_phrases.trim().is_empty() {
-        num_phrases = String::from("100");
+    if num_phrases.is_empty() {
+        num_phrases = String::from("1000");
     }
 
-    let num_phrases: u64 = num_phrases.trim().parse().unwrap();
+    let num_phrases: u64 = num_phrases.parse().unwrap();
 
 
-    let file = File::open(file_name.trim()).unwrap();
+    let file = File::open(file_name).unwrap();
     let reader = BufReader::new(file);
 
     let mut matrix: HashMap<String, HashMap<String, u32>> = HashMap::new();
