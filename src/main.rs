@@ -36,15 +36,23 @@ fn main() {
 
     let mut matrix: HashMap<String, HashMap<String, u32>> = HashMap::new();
 
+    //Words that exist for sentence structure but don't
+    //convey ideas
+
+    let stop_words = [
+        "nfkdasjfk"//"and", "the", "is", "are", "to", "of", "a", "an", "in", "for", "on", "but", "that", "it", "as"
+    ];
     //Train the matrix
     for line in reader.lines() {
 
-        let mut expressions_itr = line
-            .unwrap()
-            .split_whitespace()
-            .map(|s| s.to_string())
-            .collect::<Vec<String>>()
-            .into_iter();
+        let mut expressions_itr = line.unwrap();
+        let mut expressions_itr =
+            expressions_itr.split_whitespace()
+            .map(|s| s.to_lowercase()
+                .chars()
+                .filter(|c| !c.is_ascii_punctuation() && !c.is_whitespace())
+                .collect::<String>())
+            .filter(|s| !stop_words.contains(&s.as_str()));
 
         let mut last_expr = match expressions_itr.next() {
             Some(expr) => expr.to_string(),
@@ -74,9 +82,7 @@ fn main() {
 
     //Generate text
     for _ in 0..num_phrases {
-        print!("{}{}", expr,
-            if !expr.chars().last().unwrap().is_ascii_punctuation() { " " } else { "\n" }
-        );
+        print!("{expr} ");
 
         let mut max_entry_cnt = 0;
         let mut next_expr = String::new();
