@@ -40,7 +40,7 @@ fn main() {
     //convey ideas
 
     let stop_words = [
-        "nfkdasjfk"//"and", "the", "is", "are", "to", "of", "a", "an", "in", "for", "on", "but", "that", "it", "as"
+        "and", "the", "is", "are", "to", "of", "a", "an", "in", "for", "on", "but", "that", "it", "as"
     ];
     //Train the matrix
     for line in reader.lines() {
