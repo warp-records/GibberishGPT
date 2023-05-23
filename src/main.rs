@@ -14,7 +14,7 @@ fn main() {
     file_name = file_name.trim().to_string();
 
     if file_name.is_empty() {
-        file_name = String::from("shakespeare_plays.txt");
+        file_name = String::from("adventure_time_subtitles.txt");
     }
 
     println!("Opening file {file_name}");
@@ -34,6 +34,11 @@ fn main() {
     let file = File::open(file_name).unwrap();
     let reader = BufReader::new(file);
 
+    enum Token {
+        StopWord,
+        Word(String),
+    }
+
     let mut matrix: HashMap<String, HashMap<String, u32>> = HashMap::new();
 
     //Words that exist for sentence structure but don't
@@ -42,42 +47,66 @@ fn main() {
     let stop_words = [
         "and", "the", "is", "are", "to", "of", "a", "an", "in", "for", "on", "but", "that", "it", "as"
     ];
+    //outer key is previous word, inner key is stop word
+    let mut stop_phrase_matrix: HashMap<String, HashMap<String, u32>> = HashMap::new();
+
     //Train the matrix
     for line in reader.lines() {
 
-        let mut expressions_itr = line.unwrap();
+        let expressions_itr = line.unwrap();
         let mut expressions_itr =
             expressions_itr.split_whitespace()
             .map(|s| s.to_lowercase()
                 .chars()
                 .filter(|c| !c.is_ascii_punctuation() && !c.is_whitespace())
-                .collect::<String>())
-            .filter(|s| !stop_words.contains(&s.as_str()));
+                .collect::<String>());
+            //.filter(|s| !stop_words.contains(&s.as_str()));
 
         let mut last_expr = match expressions_itr.next() {
             Some(expr) => expr.to_string(),
             None => { continue; },
         };
 
-        for expr in expressions_itr {
+        while let Some(expr) = expressions_itr.next() {
 
-            matrix
-                .entry(last_expr.to_string())
-                .or_insert_with(HashMap::new)
-                .entry(expr.to_string())
-                .and_modify(|count| *count += 1)
-                .or_insert(1);
+            if stop_words.contains(&expr.as_str()) {
+                let mut sequence = expr.clone();
 
-            last_expr = expr.to_string();
+                while let Some(next_word) = expressions_itr.next() {
+
+                    if stop_words.contains(&next_word.as_str()) {
+                        sequence = sequence + next_word.as_str();
+                    } else {
+                        stop_phrase_matrix
+                            .entry(last_expr.to_string())
+                            .or_insert_with(HashMap::new)
+                            .entry(sequence.to_string())
+                            .and_modify(|count| *count += 1)
+                            .or_insert(1);
+
+                        last_expr = expr;
+                        break;
+                    }
+                }
+            } else {
+
+                matrix
+                    .entry(last_expr.to_string())
+                    .or_insert_with(HashMap::new)
+                    .entry(expr.to_string())
+                    .and_modify(|count| *count += 1)
+                    .or_insert(1);
+
+                last_expr = expr.to_string();
+            }
         }
     }
 
 
-    //pretened there is other code here that populates the matrix
-
-    println!("{}", matrix.len());
+    println!("Matrix length: {}\n\n", matrix.len());
 
     let mut rng = rand::thread_rng();
+
     let mut expr = matrix.keys().nth(rng.gen_range(0..matrix.len()-1)).unwrap().to_string();
 
     //Generate text
@@ -91,6 +120,27 @@ fn main() {
             if *count > max_entry_cnt {
                 max_entry_cnt = *count;
                 next_expr = entry_string.to_string();
+            }
+        }
+
+
+
+        if stop_phrase_matrix.contains_key(&expr) {
+            //Find most common stop word that occurs
+            //after given expression
+            let mut max_stop_entry_cnt = 0;
+            let mut stop_phrase = String::new();
+
+            for (entry_string, count) in &stop_phrase_matrix[&expr] {
+                if *count > max_entry_cnt {
+                    max_stop_entry_cnt = *count;
+                    stop_phrase = entry_string.to_string();
+                }
+            }
+
+            //More often than not, stop word occurs before next phrase
+            if max_stop_entry_cnt*2 > max_entry_cnt {
+                print!("{stop_phrase} ");
             }
         }
 
