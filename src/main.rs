@@ -14,7 +14,7 @@ fn main() {
     file_name = file_name.trim().to_string();
 
     if file_name.is_empty() {
-        file_name = String::from("adventure_time_subtitles.txt");
+        file_name = String::from("adventure_time_transcripts_speech.txt");
     }
 
     println!("Opening file {file_name}");
@@ -115,6 +115,11 @@ fn main() {
 
         let mut max_entry_cnt = 0;
         let mut next_expr = String::new();
+
+        if !matrix.contains_key(&expr) {
+            expr = matrix.keys().nth(rng.gen_range(0..matrix.len()-1)).unwrap().to_string();
+            continue;
+        }
 
         for (entry_string, count) in &matrix[&expr] {
             if *count > max_entry_cnt {
