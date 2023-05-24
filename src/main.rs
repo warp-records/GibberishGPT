@@ -1,5 +1,5 @@
 
-use std::fs::File;
+use std::fs;
 use std::io::{self, BufRead, BufReader};
 use std::collections::HashMap;
 use rand::Rng;
@@ -31,8 +31,7 @@ fn main() {
     let num_phrases: u64 = num_phrases.parse().unwrap();
 
 
-    let file = File::open(file_name).unwrap();
-    let reader = BufReader::new(file);
+    let text = fs::read_to_string(file_name).unwrap();
 
     enum Token {
         StopWord,
@@ -40,6 +39,8 @@ fn main() {
     }
 
     let mut matrix: HashMap<String, HashMap<String, u32>> = HashMap::new();
+
+    let token_length = 2;
 
     //Words that exist for sentence structure but don't
     //convey ideas
@@ -51,54 +52,47 @@ fn main() {
     let mut stop_phrase_matrix: HashMap<String, HashMap<String, u32>> = HashMap::new();
 
     //Train the matrix
-    for line in reader.lines() {
+    let mut expressions_itr =
+        text.split_whitespace()
+        .map(|s| s.to_lowercase()
+            .chars()
+            .filter(|c| !c.is_ascii_punctuation() && !c.is_whitespace())
+            .collect::<String>());
 
-        let expressions_itr = line.unwrap();
-        let mut expressions_itr =
-            expressions_itr.split_whitespace()
-            .map(|s| s.to_lowercase()
-                .chars()
-                .filter(|c| !c.is_ascii_punctuation() && !c.is_whitespace())
-                .collect::<String>());
-            //.filter(|s| !stop_words.contains(&s.as_str()));
 
-        let mut last_expr = match expressions_itr.next() {
-            Some(expr) => expr.to_string(),
-            None => { continue; },
-        };
+    let mut last_expr = expressions_itr.next().unwrap();
 
-        while let Some(expr) = expressions_itr.next() {
+    while let Some(expr) = expressions_itr.next() {
 
-            if stop_words.contains(&expr.as_str()) {
-                let mut sequence = expr.clone();
+        if stop_words.contains(&expr.as_str()) {
+            let mut sequence = expr.clone();
 
-                while let Some(next_word) = expressions_itr.next() {
+            while let Some(next_word) = expressions_itr.next() {
 
-                    if stop_words.contains(&next_word.as_str()) {
-                        sequence = sequence + next_word.as_str();
-                    } else {
-                        stop_phrase_matrix
-                            .entry(last_expr.to_string())
-                            .or_insert_with(HashMap::new)
-                            .entry(sequence.to_string())
-                            .and_modify(|count| *count += 1)
-                            .or_insert(1);
+                if stop_words.contains(&next_word.as_str()) {
+                    sequence = sequence + next_word.as_str();
+                } else {
+                    stop_phrase_matrix
+                        .entry(last_expr.to_string())
+                        .or_insert_with(HashMap::new)
+                        .entry(sequence.to_string())
+                        .and_modify(|count| *count += 1)
+                        .or_insert(1);
 
-                        last_expr = expr;
-                        break;
-                    }
+                    last_expr = expr;
+                    break;
                 }
-            } else {
-
-                matrix
-                    .entry(last_expr.to_string())
-                    .or_insert_with(HashMap::new)
-                    .entry(expr.to_string())
-                    .and_modify(|count| *count += 1)
-                    .or_insert(1);
-
-                last_expr = expr.to_string();
             }
+        } else {
+
+            matrix
+                .entry(last_expr.to_string())
+                .or_insert_with(HashMap::new)
+                .entry(expr.to_string())
+                .and_modify(|count| *count += 1)
+                .or_insert(1);
+
+            last_expr = expr.to_string();
         }
     }
 
