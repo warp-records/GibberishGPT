@@ -40,13 +40,13 @@ fn main() {
 
     let mut matrix: HashMap<String, HashMap<String, u32>> = HashMap::new();
 
-    let token_length = 2;
+    let token_length = 3;
 
     //Words that exist for sentence structure but don't
     //convey ideas
 
     let stop_words = [
-        "and", "the", "is", "are", "to", "of", "a", "an", "in", "for", "on", "but", "that", "it", "as"
+        "fjkdaf",//"and", "the", "is", "are", "to", "of", "a", "an", "in", "for", "on", "but", "that", "it", "as"
     ];
     //outer key is previous word, inner key is stop word
     let mut stop_phrase_matrix: HashMap<String, HashMap<String, u32>> = HashMap::new();
@@ -60,13 +60,21 @@ fn main() {
             .collect::<String>());
 
 
-    let mut last_expr = expressions_itr.next().unwrap();
+    let mut last_token = String::new();
+    for _ in 0..token_length {
+        last_token += expressions_itr.next().unwrap().as_str();
+    }
+
+    let mut curr_token = String::new();
+
+    let mut iter = 0;
 
     while let Some(expr) = expressions_itr.next() {
-
+        /*
         if stop_words.contains(&expr.as_str()) {
-            let mut sequence = expr.clone();
-
+            //let mut sequence = expr.clone();
+            //Uncommenting will make it keep collecting
+            //stop words into a sequence
             while let Some(next_word) = expressions_itr.next() {
 
                 if stop_words.contains(&next_word.as_str()) {
@@ -83,17 +91,25 @@ fn main() {
                     break;
                 }
             }
-        } else {
+        } else {*/
+            curr_token += expr.as_str();
 
-            matrix
-                .entry(last_expr.to_string())
-                .or_insert_with(HashMap::new)
-                .entry(expr.to_string())
-                .and_modify(|count| *count += 1)
-                .or_insert(1);
+            if iter % token_length == 0 {
+                matrix
+                    .entry(last_token.to_string())
+                    .or_insert_with(HashMap::new)
+                    .entry(curr_token.to_string())
+                    .and_modify(|count| *count += 1)
+                    .or_insert(1);
 
-            last_expr = expr.to_string();
-        }
+                    last_token = curr_token.to_string();
+                    curr_token.clear();
+
+            } else {
+                curr_token += " ";
+            }
+        //}
+        iter += 1;
     }
 
 
