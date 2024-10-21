@@ -1,4 +1,5 @@
 use rand::Rng;
+use regex::Regex;
 use std::collections::HashMap;
 use std::fs;
 use std::io::{self, BufRead, BufReader};
@@ -31,11 +32,17 @@ fn main() {
 
     let text = fs::read_to_string(file_name).unwrap();
 
+    #[derive(Debug)]
     enum Token {
-        StopWord,
+        Speaker(String),
+        StopWord(String),
+        Punctuation(char),
         Word(String),
     }
+    use Token::*;
 
+    //type WordMatrix = HashMap<String, HashMap<String, u32>>;
+    //let mut matrix: HashMap<String, WordMatrix> = HashMap::new();
     let mut matrix: HashMap<String, HashMap<String, u32>> = HashMap::new();
 
     let token_length = 1;
@@ -50,38 +57,74 @@ fn main() {
     //outer key is previous word, inner key is stop word
     let mut stop_phrase_matrix: HashMap<String, HashMap<String, u32>> = HashMap::new();
 
-    //Train the matrix
-    let mut expressions_itr = text
-        .split_whitespace()
-        .map(|s| {
-            s.to_lowercase()
-                .chars()
-                .filter(|c| !c.is_ascii_punctuation() && !c.is_whitespace())
-                .collect::<String>()
-        })
-        .peekable();
+    let mut tokens = Vec::new();
+    let mut expr = String::new();
 
+    let mut end_word = |tokens: &mut Vec<Token>, expr: &mut String| {
+        if stop_words.contains(&expr.as_str()) {
+            tokens.push(StopWord(expr.clone()));
+        } else {
+            tokens.push(Word(expr.clone()));
+        }
+        *expr = String::new();
+    };
+
+    for c in text.chars() {
+        match c {
+            _ if c.is_alphabetic() => {
+                expr.extend(c.to_lowercase());
+            }
+            _ if c.is_numeric() || c == '\'' => {}
+            '.' | '?' | ',' | '!' | '\n' => {
+                if matches!(tokens.last(), Some(Punctuation(_))) {
+                    continue;
+                }
+                if !expr.is_empty() {
+                    end_word(&mut tokens, &mut expr);
+                }
+                tokens.push(Punctuation(c));
+            }
+            _ => {
+                if !expr.is_empty() {
+                    end_word(&mut tokens, &mut expr);
+                }
+            }
+        }
+    }
+
+    let tokens_itr = tokens.iter().peekable();
+    for (i, tok) in tokens_itr.enumerate() {
+        println!("{:?}", tok);
+        if i == 1000 {
+            break;
+        }
+    }
+
+    return;
+
+    /*
     let mut last_token = String::new();
     for _ in 0..token_length {
-        last_token += expressions_itr.next().unwrap().as_str();
+        last_token += &tokens_itr.next().unwrap().to_string();
     }
 
     let mut curr_token = String::new();
 
+    let mut speaker = String::new();
     let mut iter = 0;
 
-    while let Some(expr) = expressions_itr.next() {
+    while let Some(expr) = tokens_itr.next() {
         if stop_words.contains(&expr.as_str()) {
             //let mut sequence = expr.clone();
             //Uncommenting will make it keep collecting
             //stop words into a sequence
 
-            while let Some(next_word) = expressions_itr.peek() {
+            while let Some(next_word) = tokens_itr.peek() {
                 let mut sequence = String::new();
 
                 if stop_words.contains(&next_word.as_str()) {
-                    sequence += next_word.as_str();
-                    expressions_itr.next();
+                    sequence += next_word;
+                    tokens_itr.next();
                 } else {
                     stop_phrase_matrix
                         .entry(expr.to_string())
@@ -94,7 +137,7 @@ fn main() {
                 }
             }
         } else {
-            curr_token += expr.as_str();
+            curr_token += &expr;
 
             if iter % token_length == 0 {
                 matrix
@@ -125,7 +168,7 @@ fn main() {
         .to_string();
 
     //Generate text
-    for _ in 0..num_phrases {
+    for _ in 0..(num_phrases / token_length) {
         //print!("{expr} ");
 
         let mut max_entry_cnt = 0;
@@ -179,9 +222,10 @@ fn main() {
                 .get_mut(&next_token)
                 .unwrap() = 0;
         }
-        //*matrix.get_mut(&token).unwrap().get_mut(&next_token).unwrap() = 0;
+        //matrix.get_mut(&token).unwrap().get_mut(&next_token).unwrap() = 0;
         token = next_token;
     }
+    */
 
     println!();
 }

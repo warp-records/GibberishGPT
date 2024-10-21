@@ -7,3 +7,4 @@ description = "Markov chain implementation. It's natural langauge generation abi
 
 [dependencies]
 rand = "0.8.5"
+regex = "1.11.0"
