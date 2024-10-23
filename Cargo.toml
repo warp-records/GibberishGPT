@@ -1,6 +1,6 @@
 [package]
 name = "chatgpt"
-version = "0.1.0"
+version = "0.2.0"
 license-file = "LICENSE.md"
 edition = "2021"
 description = "Markov chain implementation. It's natural langauge generation abilities far surpasses that of any modern LLM (obviously)."
