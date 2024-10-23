@@ -42,153 +42,9 @@ fn main() {
 
     let tokens = lex(&text);
     let mut speakers_matrix = train(&tokens);
-    //let output = gen_text(speakers_matrix, 1000);
+    let output = gen_text(speakers_matrix, 1000);
 
-    for (k, _) in speakers_matrix.iter() {
-        println!("{}", k);
-    }
-    println!("Size: {}", speakers_matrix.len());
-
-    return;
-
-    let tokens_itr = tokens.iter().peekable();
-    for (i, tok) in tokens_itr.enumerate() {
-        println!("{:?}", tok);
-        if i == 1000 {
-            break;
-        }
-    }
-
-    let mut matrix: HashMap<String, HashMap<String, u32>> = HashMap::new();
-    return;
-    /*
-       let mut last_token = String::new();
-       for _ in 0..token_length {
-           last_token += &tokens_itr.next().unwrap().to_string();
-       }
-
-       let mut curr_token = String::new();
-
-       let mut speaker = String::new();
-       let mut iter = 0;
-
-       while let Some(expr) = tokens_itr.next() {
-           if stop_words.contains(&expr.as_str()) {
-               //let mut sequence = expr.clone();
-               //Uncommenting will make it keep collecting
-               //stop words into a sequence
-
-               while let Some(next_word) = tokens_itr.peek() {
-                   let mut sequence = String::new();
-
-                   if stop_words.contains(&next_word.as_str()) {
-                       sequence += next_word;
-                       tokens_itr.next();
-                   } else {
-                       stop_phrase_matrix
-                           .entry(expr.to_string())
-                           .or_insert_with(HashMap::new)
-                           .entry(sequence.to_string())
-                           .and_modify(|count| *count += 1)
-                           .or_insert(1);
-
-                       break;
-                   }
-               }
-           } else {
-               curr_token += &expr;
-
-               if iter % token_length == 0 {
-                   matrix
-                       .entry(last_token.to_string())
-                       .or_insert_with(HashMap::new)
-                       .entry(curr_token.to_string())
-                       .and_modify(|count| *count += 1)
-                       .or_insert(1);
-
-                   last_token = curr_token.to_string();
-                   curr_token.clear();
-               } else {
-                   curr_token += " ";
-               }
-           }
-
-           iter += 1;
-       }
-    */
-
-    /*
-    println!("Matrix length: {}\n\n", matrix.len());
-
-    let mut rng = rand::thread_rng();
-
-    let mut token = matrix
-        .keys()
-        .nth(rng.gen_range(0..matrix.len() - 1))
-        .unwrap()
-        .to_string();
-
-    //Generate text
-    for _ in 0..(num_phrases / token_length) {
-        //print!("{expr} ");
-
-        let mut max_entry_cnt = 0;
-        let mut next_token = String::new();
-
-        if !matrix.contains_key(&token) {
-            token = matrix
-                .keys()
-                .nth(rng.gen_range(0..matrix.len() - 1))
-                .unwrap()
-                .to_string();
-            continue;
-        }
-
-        for (entry_string, count) in &matrix[&token] {
-            if *count > max_entry_cnt {
-                max_entry_cnt = *count;
-                next_token = entry_string.to_string();
-            }
-        }
-
-        let mut token_part_itr = next_token.split_whitespace();
-
-        while let Some(expr) = token_part_itr.next() {
-            print!("{expr} ");
-
-            if stop_phrase_matrix.contains_key(expr) {
-                //Find most common stop word that occurs
-                //after given expression
-                let mut max_stop_entry_cnt = 0;
-                let mut stop_phrase = String::new();
-
-                for (entry_string, count) in &stop_phrase_matrix[expr] {
-                    if *count > max_entry_cnt {
-                        max_stop_entry_cnt = *count;
-                        stop_phrase = entry_string.to_string();
-                    }
-                }
-
-                //More often than not, stop word occurs before next phrase
-                if max_stop_entry_cnt * 2 > max_entry_cnt {
-                    print!("{stop_phrase} ");
-                }
-            }
-        }
-
-        if matrix[&token].contains_key(&next_token) {
-            *matrix
-                .get_mut(&token)
-                .unwrap()
-                .get_mut(&next_token)
-                .unwrap() = 0;
-        }
-        //matrix.get_mut(&token).unwrap().get_mut(&next_token).unwrap() = 0;
-        token = next_token;
-    }
-    */
-
-    println!();
+    println!("{output}");
 }
 
 fn lex(text: &str) -> Vec<Token> {
@@ -230,9 +86,9 @@ fn lex(text: &str) -> Vec<Token> {
     };
 
     let mut text_itr = text.chars();
-    for c in text_itr {
+    while let Some(c) = text_itr.next() {
         match c {
-            _ if c.is_alphabetic() => {
+            _ if c.is_ascii_alphabetic() => {
                 expr.extend(c.to_lowercase());
             }
             _ if c.is_numeric() || c == '\'' => {}
@@ -245,7 +101,14 @@ fn lex(text: &str) -> Vec<Token> {
             }
             '\n' => {
                 end_word(&mut tokens, &mut expr);
-                let mut speaker = String::new();
+                let speaker = text_itr
+                    .by_ref()
+                    .take_while(|&c| c != ':')
+                    .filter(|&c| c.is_alphabetic())
+                    .collect::<String>()
+                    .to_lowercase();
+
+                tokens.push(Speaker(speaker));
             }
             _ => {
                 end_word(&mut tokens, &mut expr);
@@ -351,48 +214,67 @@ fn gen_text(speakers: HashMap<String, Speaker>, output_len: u64) -> String {
     let mut word_count = 0;
 
     while word_count < output_len {
+        //println!("{}", speakers.len());
         let speaker_name = speakers
             .keys()
             .nth(rng.gen_range(0..speakers.len() - 1))
             .unwrap();
 
+        let speaker = speakers.get(speaker_name).unwrap();
+        let mut speaker_words = 0;
+
+        const MIN_DATA_LEN: usize = 500;
+
+        if speaker.words.len() < MIN_DATA_LEN {
+            continue;
+        }
         //String manipulation in rust sucks
         output += speaker_name.to_uppercase().as_str();
         output += ": ";
-
-        let speaker = speakers.get(speaker_name).unwrap();
-        let mut sentences = 0;
-
         let mut prev_word = speaker
             .words
             .keys()
             .nth(rng.gen_range(0..speaker.words.len() - 1))
             .unwrap();
         output += prev_word;
+        output += " ";
 
-        while sentences < SPEAKER_WORDS {
+        while speaker_words < SPEAKER_WORDS {
             //this is gonna be real slow lul
-            let max_word = speaker
+
+            let max_word = if let Some(next) = speaker.words.get(prev_word) {
+                next.iter().max_by_key(|&(_, value)| value).unwrap()
+            } else {
+                //fix later lol
+                break;
+                /*speaker
                 .words
-                .get(prev_word)
+                .values()
+                .next()
                 .unwrap()
                 .iter()
-                .max_by_key(|&(_, value)| value)
-                .unwrap();
-            let max_stop_word = speaker
-                .stop_words
-                .get(prev_word)
+                .nth(rng.gen_range(0..speaker.words.len() - 1))
                 .unwrap()
-                .iter()
-                .max_by_key(|&(_, value)| value)
-                .unwrap();
-            let max_punct = speaker
-                .punct
-                .get(prev_word)
-                .unwrap()
-                .iter()
-                .max_by_key(|&(_, value)| value)
-                .unwrap();
+                */
+            };
+
+            let max_stop_word = if let Some(next) = speaker.stop_words.get(prev_word) {
+                next.iter().max_by_key(|&(_, value)| value).unwrap()
+            } else {
+                (&String::new(), &0)
+            };
+
+            let max_stop_word = if let Some(next) = speaker.stop_words.get(prev_word) {
+                next.iter().max_by_key(|&(_, value)| value).unwrap()
+            } else {
+                (&String::new(), &0)
+            };
+
+            let max_punct = if let Some(next) = speaker.punct.get(prev_word) {
+                next.iter().max_by_key(|&(_, value)| value).unwrap()
+            } else {
+                (&String::new(), &0)
+            };
 
             if max_word.1 >= max_stop_word.1 {
                 output += max_word.0;
@@ -400,9 +282,14 @@ fn gen_text(speakers: HashMap<String, Speaker>, output_len: u64) -> String {
                 output += max_stop_word.0;
             }
 
+            output += " ";
+
             prev_word = max_word.0;
             word_count += 1;
+            speaker_words += 1;
         }
+
+        output += "\n";
     }
 
     output
